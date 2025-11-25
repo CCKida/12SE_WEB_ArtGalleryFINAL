@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% from "_formhelpers.html" import render_field %}
+
+{% block title %}Edit Profile - Art Gallery{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">Edit Profile</h2>
+                    
+                    <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <!-- Profile Picture -->
+                        <div class="text-center mb-4">
+                            <div class="position-relative d-inline-block">
+                                <img id="profile-preview" 
+                                     src="{{ url_for('static', filename='uploads/' + current_user.profile_image) }}" 
+                                     alt="Profile" 
+                                     class="rounded-circle mb-3" 
+                                     width="150" 
+                                     height="150"
+                                     style="object-fit: cover;"
+                                     onerror="this.src='{{ url_for('static', filename='images/default-avatar.jpg') }}'">
+                                <label for="profile_image" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2" style="cursor: pointer;">
+                                    <i class="bi bi-camera"></i>
+                                </label>
+                                <input type="file" 
+                                       class="d-none" 
+                                       id="profile_image" 
+                                       name="profile_image" 
+                                       accept="image/*">
+                            </div>
+                        </div>
+                        
+                        <!-- Display Name -->
+                        <div class="mb-3">
+                            <label for="display_name" class="form-label">Display Name</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg" 
+                                   id="display_name" 
+                                   name="display_name" 
+                                   value="{{ current_user.display_name or '' }}" 
+                                   maxlength="100">
+                            <div class="form-text">This name will be displayed instead of your username.</div>
+                        </div>
+                        
+                        <!-- Bio -->
+                        <div class="mb-4">
+                            <label for="bio" class="form-label">Bio</label>
+                            <textarea class="form-control" 
+                                      id="bio" 
+                                      name="bio" 
+                                      rows="4" 
+                                      maxlength="500"
+                                      placeholder="Tell us about yourself...">{{ current_user.bio or '' }}</textarea>
+                            <div class="form-text">Maximum 500 characters.</div>
+                        </div>
+                        
+                        <!-- Username (readonly) -->
+                        <div class="mb-4">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg bg-light" 
+                                   id="username" 
+                                   value="{{ current_user.username }}" 
+                                   readonly>
+                            <div class="form-text">Username cannot be changed.</div>
+                        </div>
+                        
+                        <!-- Email -->
+                        <div class="mb-4">
+                            <label for="email" class="form-label">Email address</label>
+                            <input type="email" 
+                                   class="form-control form-control-lg" 
+                                   id="email" 
+                                   value="{{ current_user.email }}" 
+                                   readonly>
+                            <div class="form-text">Contact support to change your email.</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                            <a href="{{ url_for('profile', username=current_user.username) }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Change Password Card -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-body p-5">
+                    <h3 class="h5 mb-4">Change Password</h3>
+                    <form method="POST" action="{{ url_for('change_password') }}" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Current Password</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="current_password" 
+                                   name="current_password" 
+                                   required>
+                            <div class="invalid-feedback">
+                                Please enter your current password.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="new_password" 
+                                   name="new_password" 
+                                   required 
+                                   minlength="6">
+                            <div class="invalid-feedback">
+                                Password must be at least 6 characters long.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm New Password</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="confirm_password" 
+                                   name="confirm_password" 
+                                   required>
+                            <div class="invalid-feedback" id="confirm-feedback">
+                                Passwords must match.
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="bi bi-key"></i> Change Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+//<![CDATA[
+// Image preview for profile picture
+const profileImageInput = document.getElementById('profile_image');
+const profilePreview = document.getElementById('profile-preview');
+
+if (profileImageInput && profilePreview) {
+    profileImageInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                profilePreview.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+// Password confirmation validation
+const newPassword = document.getElementById("new_password");
+const confirmPassword = document.getElementById("confirm_password");
+const confirmFeedback = document.getElementById("confirm-feedback");
+
+function validatePassword() {
+    if (newPassword.value !== confirmPassword.value) {
+        confirmPassword.setCustomValidity("Passwords don't match");
+        confirmFeedback.style.display = 'block';
+    } else {
+        confirmPassword.setCustomValidity('');
+        confirmFeedback.style.display = 'none';
+    }
+}
+
+newPassword.onchange = validatePassword;
+confirmPassword.onkeyup = validatePassword;
+
+// Bootstrap form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms)
+        .forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+})()
+//]]>
+</script>
+{% endblock %}

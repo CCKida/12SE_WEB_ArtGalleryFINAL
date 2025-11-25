@@ -1,0 +1,40 @@
+{# Form helper macros for consistent form rendering #}
+
+{% macro render_field(field) %}
+    <div class="mb-3">
+        {{ field.label(class="form-label") }}
+        {% if field.errors %}
+            {{ field(class="form-control is-invalid") }}
+            <div class="invalid-feedback">
+                {% for error in field.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% else %}
+            {{ field(class="form-control") }}
+        {% endif %}
+        {% if field.description %}
+            <div class="form-text">{{ field.description }}</div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_checkbox(field) %}
+    <div class="form-check mb-3">
+        {{ field(class="form-check-input") }}
+        {{ field.label(class="form-check-label") }}
+        {% if field.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in field.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro render_submit(field, label=None, class="btn-primary") %}
+    <div class="mb-3">
+        {{ field(class="btn " + class) }}
+    </div>
+{% endmacro %}
