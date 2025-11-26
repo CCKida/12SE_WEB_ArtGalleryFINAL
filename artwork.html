@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}{{ artwork.title }} - Art Gallery{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <!-- Artwork Image -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <img src="{{ url_for('static', filename='uploads/' + artwork.image_file) }}" 
+                     class="card-img-top" 
+                     alt="{{ artwork.title }}"
+                     style="max-height: 80vh; width: 100%; object-fit: contain;">
+            </div>
+            
+            <!-- Artwork Actions -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <button id="like-btn" class="btn btn-outline-danger" data-artwork-id="{{ artwork.id }}" data-liked="{{ 'true' if is_liked else 'false' }}">
+                        <i class="bi {{ 'bi-heart-fill' if is_liked else 'bi-heart' }}" id="heart-icon"></i> 
+                        <span class="like-count">{{ artwork.likes|length }}</span> Likes
+                    </button>
+                </div>
+                <div>
+                    {% if current_user.is_authenticated and current_user == artwork.artist %}
+                    <a href="{{ url_for('edit_artwork', artwork_id=artwork.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <form action="{{ url_for('delete_artwork', artwork_id=artwork.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-outline-danger" 
+                                onclick="return confirm('Are you sure you want to delete this artwork? This action cannot be undone.')">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Artwork Description -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title">{{ artwork.title }}</h2>
+                    <p class="text-muted">
+                        By 
+                        <a href="{{ url_for('profile', username=artwork.artist.username) }}" class="text-decoration-none">
+                            {{ artwork.artist.display_name or artwork.artist.username }}
+                        </a>
+                        <span class="ms-2">•</span>
+                        <span class="ms-2">{{ artwork.date_posted.strftime('%B %d, %Y') }}</span>
+                    </p>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-primary">{{ artwork.category|title }}</span>
+                        {% if artwork.tags %}
+                            {% for tag in artwork.tags.split(',') %}
+                                <span class="badge bg-secondary">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="artwork-description">
+                        {{ artwork.description|replace('\n', '<br>')|safe }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Comments Section (Placeholder for future implementation) -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Comments</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted text-center py-4">
+                        Comments feature coming soon!
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Artist Card -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <img src="{{ url_for('static', filename='profile_pics/' + artwork.artist.profile_image) }}" 
+                         class="rounded-circle mb-3" 
+                         alt="{{ artwork.artist.username }}"
+                         style="width: 100px; height: 100px; object-fit: cover;">
+                    <h5 class="card-title">
+                        <a href="{{ url_for('profile', username=artwork.artist.username) }}" 
+                           class="text-decoration-none">
+                            {{ artwork.artist.display_name or artwork.artist.username }}
+                        </a>
+                    </h5>
+                    {% if artwork.artist.bio %}
+                        <p class="card-text">{{ artwork.artist.bio }}</p>
+                    {% endif %}
+                    <a href="{{ url_for('profile', username=artwork.artist.username) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        View Profile
+                    </a>
+                </div>
+            </div>
+            
+            <!-- More from Artist -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">More from {{ artwork.artist.display_name or artwork.artist.username }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        {% for other_art in artwork.artist.artworks[:4] %}
+                            {% if other_art.id != artwork.id %}
+                            <div class="col-6">
+                                <a href="{{ url_for('artwork', artwork_id=other_art.id) }}">
+                                    <img src="{{ url_for('static', filename='uploads/' + other_art.image_file) }}" 
+                                         class="img-fluid rounded" 
+                                         alt="{{ other_art.title }}"
+                                         style="height: 120px; width: 100%; object-fit: cover;">
+                                </a>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted">No other artworks from this artist.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const likeBtn = document.getElementById('like-btn');
+    const heartIcon = document.getElementById('heart-icon');
+    const likeCount = document.querySelector('.like-count');
+    
+    likeBtn.addEventListener('click', function() {
+        const artworkId = this.getAttribute('data-artwork-id');
+        const isLiked = this.getAttribute('data-liked') === 'true';
+        
+        // Toggle the visual state immediately for better UX
+        const newLikeState = !isLiked;
+        this.setAttribute('data-liked', newLikeState);
+        
+        if (newLikeState) {
+            heartIcon.classList.remove('bi-heart');
+            heartIcon.classList.add('bi-heart-fill');
+            likeCount.textContent = parseInt(likeCount.textContent) + 1;
+        } else {
+            heartIcon.classList.remove('bi-heart-fill');
+            heartIcon.classList.add('bi-heart');
+            likeCount.textContent = parseInt(likeCount.textContent) - 1;
+        }
+        
+        // Store the current state in case we need to revert
+        const previousState = isLiked;
+        const previousCount = parseInt(likeCount.textContent);
+        
+        // Send the request to the server
+        fetch(`/like/${artworkId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                action: newLikeState ? 'like' : 'unlike'
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to update like status');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update the UI with the server's response
+            this.setAttribute('data-liked', data.liked);
+            likeCount.textContent = data.count;
+            
+            // Update the heart icon based on the server's response
+            if (data.liked) {
+                heartIcon.classList.remove('bi-heart');
+                heartIcon.classList.add('bi-heart-fill');
+            } else {
+                heartIcon.classList.remove('bi-heart-fill');
+                heartIcon.classList.add('bi-heart');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Revert the UI to the previous state
+            this.setAttribute('data-liked', previousState);
+            likeCount.textContent = previousCount;
+            
+            if (previousState) {
+                heartIcon.classList.add('bi-heart-fill');
+                heartIcon.classList.remove('bi-heart');
+            } else {
+                heartIcon.classList.remove('bi-heart-fill');
+                heartIcon.classList.add('bi-heart');
+            }
+            
+            // Show an error message to the user
+            alert('Failed to update like status. Please try again.');
+        });
+    });
+});
+</script>
+{% endblock %}
