@@ -35,8 +35,12 @@
                             <small class="text-muted">Artworks</small>
                         </div>
                         <div class="text-center">
-                            <h4 class="mb-0">{{ user.likes|length }}</h4>
-                            <small class="text-muted">Likes</small>
+                            <h4 class="mb-0">{{ total_likes }}</h4>
+                            <small class="text-muted">Total Likes Received</small>
+                        </div>
+                        <div class="text-center">
+                            <h4 class="mb-0">{{ liked_artworks|length }}</h4>
+                            <small class="text-muted">Artworks Liked</small>
                         </div>
                     </div>
                 </div>
@@ -171,6 +175,45 @@
             </div>
             {% endif %}
         </div>
+        
+        <!-- Liked Artworks Section -->
+        {% if liked_artworks %}
+        <div class="mt-5">
+            <h3>Liked Artworks</h3>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for artwork in liked_artworks %}
+                <div class="col">
+                    <div class="card h-100 artwork-card">
+                        <a href="{{ url_for('artwork', artwork_id=artwork.id) }}" class="text-decoration-none text-dark">
+                            <div class="position-relative">
+                                <img src="{{ url_for('static', filename='uploads/' + artwork.image_file) }}" 
+                                     class="card-img-top" 
+                                     alt="{{ artwork.title }}"
+                                     style="height: 200px; object-fit: cover; width: 100%;">
+                                <div class="position-absolute bottom-0 end-0 m-2">
+                                    <span class="badge bg-primary">{{ artwork.category }}</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">{{ artwork.title }}</h5>
+                                <p class="card-text text-muted">
+                                    <small>By {{ artwork.artist.display_name or artwork.artist.username }}</small><br>
+                                    <small>{{ artwork.date_posted.strftime('%b %d, %Y') }}</small>
+                                </p>
+                            </div>
+                        </a>
+                        <div class="card-footer bg-transparent border-top-0 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">
+                                <i class="bi bi-heart-fill text-danger"></i> 
+                                <span class="like-count">{{ artwork.likes|length }}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
