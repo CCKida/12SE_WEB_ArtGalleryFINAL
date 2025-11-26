@@ -197,27 +197,35 @@ def edit_artwork(artwork_id):
     if artwork.artist != current_user:
         flash('You are not authorized to edit this artwork.', 'danger')
         return redirect(url_for('artwork', artwork_id=artwork.id))
+    
+    form = ArtworkForm()
+    
+    if form.validate_on_submit():
+        artwork.title = form.title.data
+        artwork.description = form.description.data
+        artwork.category = form.category.data
+        artwork.tags = form.tags.data
         
-    if request.method == 'POST':
-        artwork.title = request.form.get('title')
-        artwork.description = request.form.get('description')
-        artwork.category = request.form.get('category')
-        artwork.tags = request.form.get('tags', '')
-        
-        if 'image' in request.files and request.files['image'].filename:
+        if form.image.data:
             # Delete old image
             old_image = os.path.join(app.root_path, 'static/uploads', artwork.image_file)
             if os.path.exists(old_image) and artwork.image_file != 'default.jpg':
                 os.remove(old_image)
             # Save new image
-            image_file = request.files['image']
+            image_file = form.image.data
             artwork.image_file = save_picture(image_file)
-            
+        
         db.session.commit()
         flash('Artwork updated successfully!', 'success')
         return redirect(url_for('artwork', artwork_id=artwork.id))
+    elif request.method == 'GET':
+        # Pre-populate the form with existing artwork data
+        form.title.data = artwork.title
+        form.description.data = artwork.description
+        form.category.data = artwork.category
+        form.tags.data = artwork.tags
         
-    return render_template('edit_artwork.html', artwork=artwork)
+    return render_template('edit_artwork.html', title='Edit Artwork', form=form, artwork=artwork)
 
 @app.route('/artwork/<int:artwork_id>/delete', methods=['POST'])
 @login_required
@@ -240,25 +248,70 @@ def delete_artwork(artwork_id):
 @app.route('/like/<int:artwork_id>', methods=['POST'])
 @login_required
 def like_artwork(artwork_id):
+    if not request.is_json:
+        return jsonify({'error': 'Request must be JSON'}), 400
+        
+    data = request.get_json()
+    action = data.get('action', 'like')
+    
     artwork = Artwork.query.get_or_404(artwork_id)
     like = Like.query.filter_by(user_id=current_user.id, artwork_id=artwork.id).first()
     
-    if like:
-        db.session.delete(like)
-        db.session.commit()
-        return jsonify({'liked': False, 'count': len(artwork.likes) - 1})
-    else:
+    if action == 'like' and not like:
         like = Like(user_id=current_user.id, artwork_id=artwork.id)
         db.session.add(like)
         db.session.commit()
-        return jsonify({'liked': True, 'count': len(artwork.likes) + 1})
+        # Refresh the artwork to get the updated like count
+        db.session.refresh(artwork)
+        return jsonify({
+            'status': 'success',
+            'liked': True,
+            'count': len(artwork.likes)
+        })
+    elif action == 'unlike' and like:
+        db.session.delete(like)
+        db.session.commit()
+        # Refresh the artwork to get the updated like count
+        db.session.refresh(artwork)
+        return jsonify({
+            'status': 'success',
+            'liked': False,
+            'count': len(artwork.likes)
+        })
+    
+    # If we get here, the like state is already as requested
+    db.session.refresh(artwork)
+    return jsonify({
+        'status': 'success',
+        'liked': like is not None,
+        'count': len(artwork.likes)
+    })
 
 @app.route('/user/<username>')
 def profile(username):
     user = User.query.filter_by(username=username).first_or_404()
     page = request.args.get('page', 1, type=int)
     artworks = Artwork.query.filter_by(user_id=user.id).order_by(Artwork.date_posted.desc()).paginate(page=page, per_page=12)
-    return render_template('profile.html', user=user, artworks=artworks)
+    
+    # Get the total number of likes for the user's artworks
+    total_likes = db.session.query(db.func.count(Like.id))\
+        .join(Artwork, Artwork.id == Like.artwork_id)\
+        .filter(Artwork.user_id == user.id)\
+        .scalar() or 0
+    
+    # Get the artworks that the user has liked
+    liked_artworks = Artwork.query\
+        .join(Like, Artwork.id == Like.artwork_id)\
+        .filter(Like.user_id == user.id)\
+        .all()
+    
+    return render_template(
+        'profile.html',
+        user=user,
+        artworks=artworks,
+        total_likes=total_likes,
+        liked_artworks=liked_artworks
+    )
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
